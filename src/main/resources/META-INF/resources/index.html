@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Tableye</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/wingcss/0.1.8/wing.min.css"/>
+    <style>
+        input[type=number], input[type=text] {
+            width: 100%;
+            padding: 12px 20px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            -webkit-transition: .5s;
+            transition: .5s;
+            outline: 0;
+            font-family: 'Open Sans', serif;
+        }
+    </style>
+    <!-- Load AngularJS -->
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+    <script type="text/javascript">
+        var app = angular.module("TableyeManagement", []);
+
+        //Controller Part
+        app.controller("TableyeManagementController", function ($scope, $http) {
+
+            //Initialize page with default data
+            $scope.games = [];
+            $scope.players = [];
+            $scope.dealers = [];
+
+            $scope.forms = {
+                game: { id: -1, name: "" },
+                player: { id: -1, name: "", gameId: null },
+                dealer: { id: -1, name: "", employeeId: "" }
+            };
+
+            //Now load the data from server
+            _refreshPageData();
+
+            //HTTP POST/PUT methods for add/edit entities
+            $scope.update = function (entityType) {
+                var method = "";
+                var url = "";
+                var data = {};
+                if ($scope.forms[entityType].id == -1) {
+                    //Id is absent so add entity - POST operation
+                    delete $scope.forms[entityType].id;
+                    method = "POST";
+                    url = '/' + entityType + 's';
+                    data = angular.copy($scope.forms[entityType]);
+                    if (entityType === 'player') {
+                        data.game = { id: data.gameId };
+                        delete data.gameId;
+                    }
+                } else {
+                    //If Id is present, it's edit operation - PUT operation
+                    method = "PUT";
+                    url = '/' + entityType + 's/' + $scope.forms[entityType].id;
+                    data = angular.copy($scope.forms[entityType]);
+                    if (entityType === 'player') {
+                        data.game = { id: data.gameId };
+                        delete data.gameId;
+                    }
+                }
+
+                $http({
+                    method: method,
+                    url: url,
+                    data: angular.toJson(data),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).then(_success, _error);
+            };
+
+            //HTTP DELETE - delete entity by id
+            $scope.remove = function (entityType, entity) {
+                $http({
+                    method: 'DELETE',
+                    url: '/' + entityType + 's/' + entity.id
+                }).then(_success, _error);
+            };
+
+            //In case of edit, populate form with entity data
+            $scope.edit = function (entityType, entity) {
+                $scope.forms[entityType] = angular.copy(entity);
+                if (entityType === 'player') {
+                    $scope.forms[entityType].gameId = entity.game ? entity.game.id : null;
+                }
+            };
+
+            /* Private Methods */
+            //HTTP GET- get all entities
+            function _refreshPageData() {
+                $http.get('/games').then(function (response) {
+                    $scope.games = response.data;
+                });
+                $http.get('/players').then(function (response) {
+                    $scope.players = response.data;
+                });
+                $http.get('/dealers').then(function (response) {
+                    $scope.dealers = response.data;
+                });
+            }
+
+            function _success(response) {
+                _refreshPageData();
+                _clearForm();
+            }
+
+            function _error(response) {
+                alert(response.data.message || response.statusText);
+            }
+
+            //Clear the form
+            function _clearForm() {
+                $scope.forms.game = { id: -1, name: "" };
+                $scope.forms.player = { id: -1, name: "", gameId: null };
+                $scope.forms.dealer = { id: -1, name: "", employeeId: "" };
+            }
+        });
+    </script>
+</head>
+<body ng-app="TableyeManagement" ng-controller="TableyeManagementController">
+
+<div class="container">
+    <h1>Tableye Management System</h1>
+    <p>This application demonstrates how a Quarkus application implements CRUD endpoints to manage games, players, and dealers using Hibernate ORM with Panache.</p>
+
+    <h2>Games</h2>
+    <h3>Add/Edit a game</h3>
+    <form ng-submit="update('game')">
+        <div class="row">
+            <div class="col-6"><input type="text" placeholder="Name" ng-model="forms.game.name" size="60"/></div>
+        </div>
+        <input type="submit" value="Save Game"/>
+    </form>
+
+    <h3>Game List</h3>
+    <div class="row">
+        <div class="col-2">Name</div>
+    </div>
+    <div class="row" ng-repeat="game in games">
+        <div class="col-2">{{ game.name }}</div>
+        <div class="col-8"><a ng-click="edit('game', game)" class="btn">Edit</a> <a ng-click="remove('game', game)" class="btn">Remove</a></div>
+    </div>
+
+    <h2>Players</h2>
+    <h3>Add/Edit a player</h3>
+    <form ng-submit="update('player')">
+        <div class="row">
+            <div class="col-6"><input type="text" placeholder="Name" ng-model="forms.player.name" size="60"/></div>
+            <div class="col-6">
+                <select ng-model="forms.player.gameId">
+                    <option value="">Select a game</option>
+                    <option ng-repeat="game in games" value="{{game.id}}">{{game.name}}</option>
+                </select>
+            </div>
+        </div>
+        <input type="submit" value="Save Player"/>
+    </form>
+
+    <h3>Player List</h3>
+    <div class="row">
+        <div class="col-2">Name</div>
+        <div class="col-2">Game</div>
+    </div>
+    <div class="row" ng-repeat="player in players">
+        <div class="col-2">{{ player.name }}</div>
+        <div class="col-2">{{ player.game.name }}</div>
+        <div class="col-8"><a ng-click="edit('player', player)" class="btn">Edit</a> <a ng-click="remove('player', player)" class="btn">Remove</a></div>
+    </div>
+
+    <h2>Dealers</h2>
+    <h3>Add/Edit a dealer</h3>
+    <form ng-submit="update('dealer')">
+        <div class="row">
+            <div class="col-6"><input type="text" placeholder="Name" ng-model="forms.dealer.name" size="60"/></div>
+            <div class="col-6"><input type="text" placeholder="Employee ID" ng-model="forms.dealer.employeeId" size="60"/></div>
+        </div>
+        <input type="submit" value="Save Dealer"/>
+    </form>
+
+    <h3>Dealer List</h3>
+    <div class="row">
+        <div class="col-2">Name</div>
+        <div class="col-2">Employee ID</div>
+    </div>
+    <div class="row" ng-repeat="dealer in dealers">
+        <div class="col-2">{{ dealer.name }}</div>
+        <div class="col-2">{{ dealer.employeeId }}</div>
+        <div class="col-8"><a ng-click="edit('dealer', dealer)" class="btn">Edit</a> <a ng-click="remove('dealer', dealer)" class="btn">Remove</a></div>
+    </div>
+</div>
+
+</body>
+</html>

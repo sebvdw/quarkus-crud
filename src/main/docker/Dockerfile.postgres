@@ -1,0 +1,15 @@
+# Use the official PostgreSQL image as a base
+FROM postgres:latest
+
+# Set environment variables
+ENV POSTGRES_DB=casino
+ENV POSTGRES_USER=admin
+ENV POSTGRES_PASSWORD=admin
+
+# Expose the PostgreSQL port
+EXPOSE 5432
+
+# Add any additional configuration if needed
+# COPY postgresql.conf /etc/postgresql/postgresql.conf
+
+# The CMD is inherited from the base image, so we don't need to specify it again
